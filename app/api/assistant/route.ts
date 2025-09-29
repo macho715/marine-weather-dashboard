@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
-import { deriveVoyageIoi } from "@/lib/server/ioi"
-import { VESSEL_DATASET } from "@/lib/server/vessel-data"
+import { deriveVoyageIoi } from "../../../lib/server/ioi"
+import { VESSEL_DATASET } from "../../../lib/server/vessel-data"
 
 const LOWER_PROMPT_MATCH = [
   { key: "weather", handler: buildWeatherInsight },

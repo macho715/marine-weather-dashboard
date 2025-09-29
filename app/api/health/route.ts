@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { getLastReport } from "@/lib/server/report-state"
+import { getLastReport } from "../../../lib/server/report-state"
 
 export const dynamic = 'force-dynamic'
 

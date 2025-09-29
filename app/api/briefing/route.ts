@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
-import { deriveVoyageIoi } from "@/lib/server/ioi"
-import { WeatherWindowRecord } from "@/lib/server/vessel-data"
+import { deriveVoyageIoi } from "../../../lib/server/ioi"
+import { WeatherWindowRecord } from "../../../lib/server/vessel-data"
 
 type IncomingVoyage = {
   id: string

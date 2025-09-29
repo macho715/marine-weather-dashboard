@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
-import { computeIoiFromMarine } from "@/lib/server/ioi"
-import { VESSEL_DATASET } from "@/lib/server/vessel-data"
+import { computeIoiFromMarine } from "../../../lib/server/ioi"
+import { VESSEL_DATASET } from "../../../lib/server/vessel-data"
 
 interface CachedMarine {
   snapshot: {
