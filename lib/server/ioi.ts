@@ -1,4 +1,4 @@
-/**
+﻿/**
  * IOI (Indication of Interest) Service
  * Handles marine data, vessel information, and weather integration
  */
