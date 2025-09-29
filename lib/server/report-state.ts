@@ -166,11 +166,57 @@ export async function updateReportState(
 }
 
 /**
+ * Last Report Record type
+ */
+export interface LastReportRecord {
+  generatedAt: string;
+  slot: 'am' | 'pm';
+  ok: boolean;
+  sent: Array<{
+    channel: 'slack' | 'email';
+    ok: boolean;
+    status?: number;
+    id?: string;
+    error?: string;
+    skipped: boolean;
+  }>;
+  sample: string;
+  timezone: string;
+}
+
+// In-memory storage for last report
+let lastReport: LastReportRecord | null = null;
+
+/**
+ * Get the last report record
+ */
+export function getLastReport(): LastReportRecord | null {
+  return lastReport;
+}
+
+/**
+ * Set the last report record
+ */
+export function setLastReport(record: LastReportRecord): void {
+  lastReport = record;
+}
+
+/**
+ * Clear the last report record
+ */
+export function clearLastReport(): void {
+  lastReport = null;
+}
+
+/**
  * Report State Service singleton
  */
 export const reportState = {
   getHealthStatus,
   checkServiceHealth,
   getReportState,
-  updateReportState
+  updateReportState,
+  getLastReport,
+  setLastReport,
+  clearLastReport
 };
