@@ -1,0 +1,9 @@
+---
+name: Map & UI Rule
+version: "1.0"
+globs: ["app/**/*.{tsx,jsx,html}", "components/**/*.{tsx,jsx}"]
+triggers: [request]
+---
+- 행 클릭→항로 하이라이트, 패널 동기화, 레이어 토글
+- A11y: ARIA/키보드 내비/포커스 트랩/고대비
+- Tests: 렌더 스냅샷, 키보드 탭순서

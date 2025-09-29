@@ -1,0 +1,10 @@
+---
+name: Weather-Tide Window Link
+version: "1.0"
+globs: ["**/*window*.{ts,js,py}", "lib/**/*"]
+triggers: [file_change]
+---
+- Must: forecast+tide 창 교집합 → workable windows 산출
+- Config: config/thresholds.json 없으면 실패
+- Edge: overlap/holes 처리, 3일 롤링 윈도우
+- Tests: join 정확도, 임계값 flip, 빈창 처리

@@ -1,0 +1,9 @@
+---
+name: Tide Merge
+version: "1.0"
+globs: ["**/*tide*.{ts,js,py}", "lib/**/*"]
+triggers: [file_change]
+---
+- Inputs: {time, level_m, high_low}
+- Must: 고저 시점 식별, (가정: 선형)보간 → 주석 명시
+- Tests: 고/저 경계, 음수 수위, UTC↔local offset 검증

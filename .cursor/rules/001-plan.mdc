@@ -1,0 +1,11 @@
+---
+name: Project Plan & Sections
+version: "1.0"
+triggers: [request]
+---
+## Scope
+- Sections: forecast-ingest, tide-merge, window-link, ioi-decision, map-ui
+## Done-When
+- 각 섹션 테스트 통과 + docs/decision-log.md 기록
+## Guard
+- Safety thresholds 변경은 060(Gated) 통과 전 merge 금지

@@ -1,0 +1,10 @@
+---
+name: Safety Thresholds (Gated)
+version: "1.0"
+globs: ["**/*threshold*.{ts,js,json}", "config/**/thresholds*.{json,yml}"]
+triggers: [file_change]
+---
+- wave/wind/vis/period 임계 변경은 다음을 만족해야 merge:
+  1) 경계 테스트 업데이트(=,<,> 케이스) AND
+  2) docs/decision-log.md에 변경사유·근거(모델/출처/절대날짜) 기록
+- 위 조건 미충족 시 자동 차단

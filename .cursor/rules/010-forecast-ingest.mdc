@@ -1,0 +1,10 @@
+---
+name: Marine Forecast Ingest
+version: "1.0"
+globs: ["**/*forecast*.{ts,js,py}", "lib/**/*", "server/**/*"]
+triggers: [file_change]
+---
+- Inputs: {time, wave_m, wind_kt, vis_km, period_s} (UTC 정규화)
+- Must: schema validate(json-schema), NaN/누락 fail-fast
+- Tests: 단위 변환(kt↔m/s), 리샘플링, 누락열, 경계시간 포함성
+- Disallow: silent coercion / implicit provider fallback

@@ -1,0 +1,9 @@
+---
+name: IOI / Go-No-Go Decision
+version: "1.0"
+globs: ["**/*ioi*.{ts,js,py,tsx}", "lib/**/*", "app/**/*.{ts,tsx,js}"]
+triggers: [file_change]
+---
+- IOI=f(wave,wind,vis[,period]); Deterministic(2-dec)
+- Must: UI tooltip용 reason 문자열(임계·근거 표시)
+- Tests: 경계(=,<,>)·반올림·문구 일관성

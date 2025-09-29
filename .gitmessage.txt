@@ -1,0 +1,5 @@
+feat({section}): {short goal}
+- scope: files […]
+- tests: added/updated […]
+- assumptions: […]
+- risks: […]
