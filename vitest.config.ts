@@ -9,7 +9,14 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      include: ["lib/server/**/*.ts", "app/api/report/route.ts"],
+      include: [
+        "lib/server/notifier.ts",
+        "lib/server/guarded-fetch.ts",
+        "lib/server/ioi.ts",
+        "app/api/marine/route.ts",
+        "app/api/report/route.ts",
+        "app/api/briefing/route.ts",
+      ],
       thresholds: {
         lines: 70,
         statements: 70,

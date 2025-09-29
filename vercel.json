@@ -4,6 +4,16 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/report?slot=am",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/report?slot=pm",
+      "schedule": "0 13 * * *"
+    }
+  ],
   "buildCommand": "",
   "outputDirectory": "",
   "installCommand": "",

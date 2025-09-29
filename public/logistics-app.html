@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weather Vessel Logistics</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha384-Mz9vYuqbWtaXDpUe1koRaSPo6e7iT730cdpShUMHbOWcZH/5LiCFYl8a17kaI0s5"
+      crossorigin="anonymous"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --panel-height: 520px;
+        --schedule-max-height: 400px;
+        --gap: 1.25rem;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: radial-gradient(circle at top left, #0f172a, #020617);
+        color: #e2e8f0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header,
+      footer {
+        position: sticky;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(16px);
+        z-index: 10;
+      }
+
+      header {
+        top: 0;
+        padding: 1rem 2rem 0.75rem;
+        box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.18);
+      }
+
+      footer {
+        bottom: 0;
+        padding: 0.75rem 2rem 1rem;
+        box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.18);
+        font-size: 0.875rem;
+        color: rgba(226, 232, 240, 0.7);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 2.2vw, 2.4rem);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      main {
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: var(--gap);
+        padding: 1rem 2rem 2rem;
+      }
+
+      .panel {
+        background: linear-gradient(
+          180deg,
+          rgba(30, 41, 59, 0.72),
+          rgba(15, 23, 42, 0.92)
+        );
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        padding: 1.25rem;
+        min-height: min(100%, var(--panel-height));
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        overflow: hidden;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: rgba(148, 163, 184, 0.85);
+      }
+
+      #map {
+        flex: 1;
+        min-height: 280px;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .map-skeleton {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: repeating-linear-gradient(
+          135deg,
+          rgba(51, 65, 85, 0.3),
+          rgba(51, 65, 85, 0.3) 16px,
+          rgba(30, 41, 59, 0.3) 16px,
+          rgba(30, 41, 59, 0.3) 32px
+        );
+        color: rgba(226, 232, 240, 0.8);
+        font-weight: 600;
+        z-index: 5;
+      }
+
+      .schedule-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .schedule-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 0.95rem;
+        background: rgba(15, 23, 42, 0.65);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .schedule-head {
+        position: sticky;
+        top: 0;
+        background: rgba(15, 23, 42, 0.92);
+        box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.18);
+        z-index: 2;
+      }
+
+      .schedule-head th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        font-weight: 600;
+        color: rgba(148, 163, 184, 0.8);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.78rem;
+      }
+
+      .schedule-body {
+        display: block;
+        max-height: var(--schedule-max-height);
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+
+      .schedule-body tr {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr 0.8fr;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        gap: 0.5rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      }
+
+      .schedule-body tr:last-child {
+        border-bottom: none;
+      }
+
+      .schedule-body td {
+        padding: 0.25rem 0.5rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .controls button,
+      .controls a {
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(30, 41, 59, 0.65);
+        color: inherit;
+        text-decoration: none;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          transform 0.2s ease,
+          border-color 0.2s ease;
+      }
+
+      .controls button:hover,
+      .controls a:hover,
+      .dropzone.is-dragging {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.8);
+      }
+
+      .dropzone {
+        border: 1px dashed rgba(96, 165, 250, 0.6);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        color: rgba(148, 163, 184, 0.9);
+        transition: background 0.2s ease;
+      }
+
+      .dropzone input {
+        display: none;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(2, 6, 23, 0.65);
+        backdrop-filter: blur(20px);
+        z-index: 50;
+      }
+
+      .modal.is-open {
+        display: flex;
+      }
+
+      .modal__dialog {
+        background: rgba(15, 23, 42, 0.92);
+        border-radius: 16px;
+        padding: 1.5rem;
+        width: min(520px, 92vw);
+        max-height: 80vh;
+        overflow-y: auto;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .modal__dialog h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .modal__close {
+        align-self: flex-end;
+        border: none;
+        background: rgba(30, 41, 59, 0.8);
+        color: inherit;
+        border-radius: 8px;
+        padding: 0.35rem 0.75rem;
+        cursor: pointer;
+      }
+
+      .tooltip {
+        position: absolute;
+        pointer-events: none;
+        transform: translate(-50%, -120%);
+        background: rgba(15, 23, 42, 0.95);
+        color: #f8fafc;
+        padding: 0.4rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        z-index: 800;
+      }
+
+      @media (max-width: 960px) {
+        main {
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          padding: 1rem;
+        }
+
+        .panel {
+          min-height: max(360px, var(--panel-height));
+        }
+
+        header,
+        footer {
+          padding-left: 1.25rem;
+          padding-right: 1.25rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Weather Vessel · Operations Console</h1>
+      <p
+        style="
+          margin: 0.35rem 0 0;
+          color: rgba(148, 163, 184, 0.75);
+          font-size: 0.9rem;
+        "
+      >
+        Twice-daily marine briefing · Auto refresh every 10 minutes
+      </p>
+    </header>
+    <main>
+      <section class="panel">
+        <h2>航路 상태</h2>
+        <div id="map">
+          <div class="map-skeleton" data-map-skeleton>
+            Loading vessel track…
+          </div>
+        </div>
+        <div
+          id="map-error"
+          style="color: #fca5a5; font-size: 0.85rem; display: none"
+        ></div>
+      </section>
+      <section class="panel schedule-wrapper">
+        <h2>Schedule</h2>
+        <table class="schedule-table">
+          <thead class="schedule-head">
+            <tr>
+              <th>Voyage</th>
+              <th>ETD</th>
+              <th>ETA</th>
+              <th>Cargo</th>
+              <th>IOI</th>
+            </tr>
+          </thead>
+          <tbody
+            class="schedule-body"
+            data-auto-scroll
+            data-schedule-body
+          ></tbody>
+        </table>
+      </section>
+      <section class="panel">
+        <h2>Controls</h2>
+        <div class="controls">
+          <button type="button" data-open-modal>View Daily Briefing</button>
+          <a href="/api/report" target="_blank" rel="noreferrer"
+            >Trigger Manual Report</a
+          >
+          <div class="dropzone" data-dropzone>
+            <p style="margin: 0">
+              Drop CSV/JSON schedule updates or click to upload
+            </p>
+            <input type="file" accept=".csv,.json" multiple />
+          </div>
+          <button type="button" data-scroll-top>Back to Top</button>
+        </div>
+      </section>
+    </main>
+    <footer>
+      Last marine update: <span data-last-update>--</span> · Auto scroll
+      <span data-auto-status>enabled</span>
+    </footer>
+
+    <div
+      class="modal"
+      data-modal
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div class="modal__dialog" data-modal-dialog>
+        <button
+          type="button"
+          class="modal__close"
+          data-modal-close
+          aria-label="Close"
+        >
+          Close
+        </button>
+        <h3 id="modal-title">Daily Briefing</h3>
+        <pre style="margin: 0; white-space: pre-wrap" data-briefing-text>
+Loading…</pre
+        >
+      </div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha384-lPbbGr3HdWu3UwG+329xNXO/SuKD5uq7Uc7KUa95syEHCqB6f+GO6zkRgZNpmj12"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      const AUTO_SCROLL_DELAY = 8000;
+      const autoScrollTarget = document.querySelector("[data-auto-scroll]");
+      const autoStatusEl = document.querySelector("[data-auto-status]");
+      let lastUserInteraction = 0;
+      let autoScrollTimer = null;
+
+      updateAutoStatus(true);
+
+      function markUserInteraction() {
+        lastUserInteraction = Date.now();
+        updateAutoStatus(false);
+        if (autoScrollTimer) {
+          clearTimeout(autoScrollTimer);
+        }
+        autoScrollTimer = setTimeout(() => {
+          updateAutoStatus(true);
+        }, AUTO_SCROLL_DELAY);
+      }
+
+      function updateAutoStatus(enabled) {
+        if (!autoStatusEl) return;
+        autoStatusEl.textContent = enabled ? "enabled" : "paused";
+      }
+
+      function maybeAutoScroll() {
+        if (!autoScrollTarget) return;
+        const now = Date.now();
+        if (now - lastUserInteraction < AUTO_SCROLL_DELAY) {
+          return;
+        }
+        autoScrollTarget.scrollTo({
+          top: autoScrollTarget.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+
+      ["scroll", "keydown", "pointerdown", "touchstart"].forEach(
+        (eventName) => {
+          window.addEventListener(eventName, markUserInteraction, {
+            passive: true,
+          });
+        },
+      );
+
+      setInterval(maybeAutoScroll, 5000);
+
+      function safeNumber(value, fallback = null) {
+        if (value === null || value === undefined || value === "")
+          return fallback;
+        const numeric = Number(value);
+        return Number.isFinite(numeric) ? numeric : fallback;
+      }
+
+      function computePanelHeights() {
+        const root = document.documentElement;
+        const header = document.querySelector("header");
+        const footer = document.querySelector("footer");
+        const viewport = window.visualViewport
+          ? window.visualViewport.height
+          : window.innerHeight;
+        const headerHeight = header ? header.getBoundingClientRect().height : 0;
+        const footerHeight = footer ? footer.getBoundingClientRect().height : 0;
+        const verticalPadding = 48;
+        const available = Math.max(
+          320,
+          viewport - headerHeight - footerHeight - verticalPadding,
+        );
+        const scheduleMax = Math.max(260, available - 140);
+        root.style.setProperty("--panel-height", `${available}px`);
+        root.style.setProperty("--schedule-max-height", `${scheduleMax}px`);
+      }
+
+      const scheduleEntries = [
+        {
+          id: "V001",
+          etd: "2024-01-15T08:00:00Z",
+          eta: "2024-01-20T14:00:00Z",
+          cargo: "Containers",
+          ioi: 82,
+        },
+        {
+          id: "V002",
+          etd: "2024-01-22T10:00:00Z",
+          eta: "2024-01-27T16:00:00Z",
+          cargo: "Bulk Cargo",
+          ioi: 64,
+        },
+      ];
+
+      function formatDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.valueOf())) return "--";
+        return date.toLocaleString("en-GB", {
+          timeZone: "Asia/Dubai",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function hydrateSchedule(entries) {
+        const body = document.querySelector("[data-schedule-body]");
+        if (!body) return;
+        body.innerHTML = "";
+        entries.forEach((entry) => {
+          const row = document.createElement("tr");
+          const ioiValue = safeNumber(entry.ioi, 0);
+          const ioiText =
+            ioiValue === null ? "--" : Number(ioiValue).toFixed(0);
+          row.innerHTML = `
+            <td>${entry.id}</td>
+            <td>${formatDate(entry.etd)}</td>
+            <td>${formatDate(entry.eta)}</td>
+            <td>${entry.cargo || "—"}</td>
+            <td>${ioiText}</td>
+          `;
+          body.appendChild(row);
+        });
+      }
+
+      const FIELD_ALIASES = {
+        id: ["id", "voyage", "voyage_id", "VOYAGE"],
+        etd: ["etd", "departure", "sail_date"],
+        eta: ["eta", "arrival"],
+        cargo: ["cargo", "commodity", "load"],
+        ioi: ["ioi", "risk", "score"],
+      };
+
+      function normaliseRecord(record) {
+        const result = {};
+        Object.entries(FIELD_ALIASES).forEach(([key, aliases]) => {
+          for (const alias of aliases) {
+            if (record[alias] !== undefined) {
+              result[key] = record[alias];
+              break;
+            }
+          }
+        });
+        return {
+          id: result.id || "N/A",
+          etd: result.etd || result.ETD || null,
+          eta: result.eta || result.ETA || null,
+          cargo: result.cargo || "—",
+          ioi: safeNumber(result.ioi, 0),
+        };
+      }
+
+      function parseCsv(text) {
+        const lines = text.split(/\r?\n/).filter(Boolean);
+        if (!lines.length) return [];
+        const headers = lines[0].split(",").map((header) => header.trim());
+        const rows = [];
+        for (let i = 1; i < lines.length; i += 1) {
+          const values = lines[i].split(",");
+          const record = {};
+          headers.forEach((header, index) => {
+            record[header] = values[index] ? values[index].trim() : "";
+          });
+          rows.push(normaliseRecord(record));
+        }
+        return rows;
+      }
+
+      function parseJson(text) {
+        try {
+          const data = JSON.parse(text);
+          if (Array.isArray(data)) {
+            return data.map((item) => normaliseRecord(item));
+          }
+          if (Array.isArray(data.schedule)) {
+            return data.schedule.map((item) => normaliseRecord(item));
+          }
+        } catch (error) {
+          console.error("JSON parse error", error);
+        }
+        return [];
+      }
+
+      function handleFiles(fileList) {
+        const entries = [];
+        const readers = [];
+        Array.from(fileList).forEach((file) => {
+          const reader = new FileReader();
+          readers.push(
+            new Promise((resolve) => {
+              reader.onload = () => {
+                const text = reader.result;
+                if (typeof text === "string") {
+                  const parsed = file.name.endsWith(".json")
+                    ? parseJson(text)
+                    : parseCsv(text);
+                  entries.push(...parsed);
+                }
+                resolve();
+              };
+              reader.onerror = () => resolve();
+            }),
+          );
+          reader.readAsText(file);
+        });
+
+        Promise.all(readers).then(() => {
+          if (entries.length) {
+            hydrateSchedule(entries);
+            markUserInteraction();
+          }
+        });
+      }
+
+      hydrateSchedule(scheduleEntries);
+
+      const dropzone = document.querySelector("[data-dropzone]");
+      if (dropzone) {
+        const input = dropzone.querySelector("input");
+        dropzone.addEventListener("click", () => input && input.click());
+        dropzone.addEventListener("dragenter", (event) => {
+          event.preventDefault();
+          dropzone.classList.add("is-dragging");
+        });
+        dropzone.addEventListener("dragover", (event) => {
+          event.preventDefault();
+        });
+        ["dragleave", "drop"].forEach((eventName) => {
+          dropzone.addEventListener(eventName, () =>
+            dropzone.classList.remove("is-dragging"),
+          );
+        });
+        dropzone.addEventListener("drop", (event) => {
+          event.preventDefault();
+          if (event.dataTransfer?.files?.length) {
+            handleFiles(event.dataTransfer.files);
+          }
+        });
+        input?.addEventListener("change", (event) => {
+          const files = event.target.files;
+          if (files?.length) {
+            handleFiles(files);
+          }
+        });
+      }
+
+      const modal = document.querySelector("[data-modal]");
+      const modalDialog = document.querySelector("[data-modal-dialog]");
+      const modalClose = document.querySelector("[data-modal-close]");
+      const modalToggle = document.querySelector("[data-open-modal]");
+      const briefingText = document.querySelector("[data-briefing-text]");
+      let lastFocusedElement = null;
+
+      function openModal() {
+        if (!modal) return;
+        lastFocusedElement = document.activeElement;
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+        modalClose?.focus();
+        loadBriefing();
+      }
+
+      function closeModal() {
+        if (!modal) return;
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        if (lastFocusedElement && lastFocusedElement.focus) {
+          lastFocusedElement.focus();
+        }
+      }
+
+      async function loadBriefing() {
+        if (!briefingText) return;
+        briefingText.textContent = "Loading…";
+        try {
+          const response = await fetch("/api/report");
+          const payload = await response.json();
+          if (payload?.sample) {
+            briefingText.textContent = payload.sample;
+            document.querySelector("[data-last-update]").textContent = new Date(
+              payload.generatedAt || Date.now(),
+            ).toLocaleString("en-GB", {
+              timeZone: payload.timezone || "Asia/Dubai",
+              hour: "2-digit",
+              minute: "2-digit",
+              month: "short",
+              day: "2-digit",
+            });
+          } else {
+            briefingText.textContent = "No report available yet.";
+          }
+        } catch (error) {
+          console.error("Failed to load briefing", error);
+          briefingText.textContent = "Failed to load report.";
+        }
+      }
+
+      modalToggle?.addEventListener("click", openModal);
+      modalClose?.addEventListener("click", closeModal);
+      modal?.addEventListener("click", (event) => {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal();
+        }
+        if (event.key === "Tab" && modal?.classList.contains("is-open")) {
+          const focusable = modalDialog?.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          );
+          if (!focusable?.length) return;
+          const list = Array.from(focusable);
+          const first = list[0];
+          const last = list[list.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      document
+        .querySelector("[data-scroll-top]")
+        ?.addEventListener("click", () => {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+
+      function initMap() {
+        const mapContainer = document.getElementById("map");
+        if (!mapContainer) return;
+        try {
+          const map = L.map(mapContainer, { zoomControl: false });
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 18,
+            attribution: "&copy; OpenStreetMap contributors",
+          }).addTo(map);
+
+          const route = [
+            { lat: 24.4539, lng: 54.3773 },
+            { lat: 18.4861, lng: 73.8213 },
+            { lat: 1.2966, lng: 103.7764 },
+          ];
+
+          if (!Array.isArray(route) || route.length < 2) {
+            throw new Error("Route not available");
+          }
+
+          const filtered = route.filter((point) => {
+            const lat = safeNumber(point.lat);
+            const lng = safeNumber(point.lng);
+            return lat !== null && lng !== null;
+          });
+
+          if (filtered.length < 2) {
+            throw new Error("Route coordinates incomplete");
+          }
+
+          const polyline = L.polyline(filtered, {
+            color: "#38bdf8",
+            weight: 4,
+          }).addTo(map);
+          L.circleMarker(filtered[0], {
+            radius: 6,
+            color: "#f97316",
+            fillColor: "#facc15",
+            fillOpacity: 0.9,
+          })
+            .bindTooltip("Origin", { permanent: false, direction: "top" })
+            .addTo(map);
+
+          L.circleMarker(filtered[filtered.length - 1], {
+            radius: 6,
+            color: "#22d3ee",
+            fillColor: "#0891b2",
+            fillOpacity: 0.9,
+          })
+            .bindTooltip("Destination", { permanent: false, direction: "top" })
+            .addTo(map);
+
+          map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
+        } catch (error) {
+          console.error("Map initialisation failed", error);
+          const errorBox = document.getElementById("map-error");
+          if (errorBox) {
+            errorBox.textContent =
+              "Unable to render map: " + (error?.message || "unknown error");
+            errorBox.style.display = "block";
+          }
+        } finally {
+          const skeletonEl = document.querySelector("[data-map-skeleton]");
+          if (skeletonEl) {
+            skeletonEl.hidden = true;
+          }
+        }
+      }
+
+      if ("requestIdleCallback" in window) {
+        window.requestIdleCallback(computePanelHeights);
+      } else {
+        setTimeout(computePanelHeights, 0);
+      }
+
+      window.addEventListener("resize", () => {
+        if ("requestIdleCallback" in window) {
+          window.requestIdleCallback(computePanelHeights);
+        } else {
+          setTimeout(computePanelHeights, 0);
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        computePanelHeights();
+        initMap();
+      });
+    </script>
+  </body>
+</html>
