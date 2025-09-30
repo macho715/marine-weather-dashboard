@@ -21,13 +21,6 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   generateEtags: false,
-  // API Routes 최적화
-  api: {
-    bodyParser: {
-      sizeLimit: '1mb',
-    },
-    responseLimit: false,
-  },
 }
 
 export default nextConfig
