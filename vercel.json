@@ -1,13 +1,8 @@
 {
   "functions": {
-    "app/api/marine-ops/route.ts": {
+    "api/*.js": {
+      "runtime": "nodejs18.x",
       "maxDuration": 30
-    },
-    "app/api/marine-weather/route.ts": {
-      "maxDuration": 30
-    },
-    "app/api/marine-stream/route.ts": {
-      "maxDuration": 60
     }
   },
   "framework": "nextjs",
@@ -16,6 +11,25 @@
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+        }
+      ]
     }
   ]
 }

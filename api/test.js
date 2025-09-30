@@ -14,19 +14,21 @@ export default function handler(req, res) {
   if (req.method === 'GET') {
     res.status(200).json({
       success: true,
-      message: 'Vercel Functions API가 정상 작동합니다.',
+      message: 'Vercel Functions API가 정상 작동합니다!',
       timestamp: new Date().toISOString(),
       method: 'GET',
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'production',
+      version: '1.0.0'
     });
   } else if (req.method === 'POST') {
     res.status(200).json({
       success: true,
-      message: 'Vercel Functions API가 정상 작동합니다.',
+      message: 'Vercel Functions API가 정상 작동합니다!',
       timestamp: new Date().toISOString(),
       method: 'POST',
       receivedData: req.body,
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'production',
+      version: '1.0.0'
     });
   } else {
     res.setHeader('Allow', ['GET', 'POST']);

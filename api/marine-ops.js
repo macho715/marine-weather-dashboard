@@ -34,6 +34,7 @@ export default function handler(req, res) {
       data: result,
       coordinates: { lat: parseFloat(lat || 25.0), lon: parseFloat(lon || 55.0) },
       timestamp: new Date().toISOString(),
+      source: 'Vercel Functions'
     });
   } else if (req.method === 'POST') {
     const body = req.body;
@@ -57,6 +58,7 @@ export default function handler(req, res) {
       success: true,
       data: result,
       timestamp: new Date().toISOString(),
+      source: 'Vercel Functions'
     });
   } else {
     res.setHeader('Allow', ['GET', 'POST']);
