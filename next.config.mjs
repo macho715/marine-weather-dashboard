@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // output: 'export', // Static export 제거 - API Routes 활성화
-  trailingSlash: true,
+  trailingSlash: false, // API 라우트 호환성을 위해 false로 변경
   eslint: {
     ignoreDuringBuilds: false, // 린트 활성화
   },
