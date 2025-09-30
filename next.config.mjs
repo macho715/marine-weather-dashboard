@@ -13,7 +13,9 @@ const nextConfig = {
     domains: ['api.example.com', 'open-meteo.com'], // 외부 이미지 도메인
   },
   experimental: {
-    serverActions: true, // Server Actions 활성화
+    serverActions: {
+      allowedOrigins: ['localhost:3000', 'localhost:3001', 'localhost:3002', 'marine-weather-dashboard.vercel.app']
+    }, // Server Actions 활성화
   },
 }
 
