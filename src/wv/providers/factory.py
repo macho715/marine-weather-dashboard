@@ -4,20 +4,24 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from wv.providers.base import BaseProvider
+from wv.providers.base import MarineProvider
+from wv.providers.manager import ProviderManager
+from wv.providers.noaa_ww3 import NoaaWaveWatchProvider
 from wv.providers.open_meteo import OpenMeteoMarineProvider
 from wv.providers.sample import SampleProvider
+from wv.providers.stormglass import StormglassProvider
 from wv.utils.cache import DiskCache
 
 
-def create_providers() -> Sequence[BaseProvider]:
+def create_providers() -> Sequence[MarineProvider]:
     """기본 공급자 목록. Build default provider list."""
 
-    providers: list[BaseProvider] = [
+    return [
+        StormglassProvider(),
         OpenMeteoMarineProvider(),
+        NoaaWaveWatchProvider(),
+        SampleProvider(),
     ]
-    providers.append(SampleProvider())
-    return providers
 
 
 def create_manager() -> ProviderManager:

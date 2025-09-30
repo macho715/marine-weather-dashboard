@@ -86,7 +86,8 @@ dist
 
 # Gatsby files
 .cache/
-public
+public/*
+!public/logistics-app.html
 
 # Storybook build outputs
 .out

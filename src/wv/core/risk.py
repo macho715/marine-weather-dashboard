@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, List
+from typing import List
 
-from .models import ForecastPoint, RiskAssessment, RiskLevel
-from .utils import format_metric
+from .models import ForecastPoint, RiskAssessment, RiskLevel, RiskMetrics
 
 
 def _env_float(name: str, default: float) -> float:
@@ -58,14 +57,13 @@ def compute_risk(point: ForecastPoint) -> RiskAssessment:
         level = RiskLevel.MEDIUM if level is RiskLevel.LOW else level
         reasons.append("Missing swell inputs; conservative risk applied")
 
-    metrics: Dict[str, str] = {
-        "Hs": format_metric(point.hs, "m"),
-        "Wind": format_metric(point.wind_speed, "kt"),
-        "Wind Dir": format_metric(point.wind_dir, "deg"),
-        "Swell Hs": format_metric(point.swell_height, "m"),
-        "Swell Tp": format_metric(point.swell_period, "s"),
-        "Swell Dir": format_metric(point.swell_direction, "deg"),
-    }
+    metrics = RiskMetrics(
+        max_wave_height=float(hs) if hs is not None else 0.0,
+        max_wind_speed=float(wind) if wind is not None else 0.0,
+        dominant_wave_dir=point.dp,
+        dominant_wind_dir=point.wind_dir,
+        average_swell_period=point.swell_period,
+    )
 
     if not reasons:
         reasons.append("Conditions within defined safety thresholds")

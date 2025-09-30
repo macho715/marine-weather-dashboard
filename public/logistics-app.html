@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weather Vessel Logistics Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-o9N1j7kPTHIisHnqMTL36pGg5Qo7lB1C1xgdBA4bSAw="
+      crossorigin=""
+    />
+    <style>
+      :root {
+        --gap: 1.25rem;
+        --panel-height: 60vh;
+        --schedule-max-height: 38vh;
+        --header-height: 64px;
+        --footer-height: 48px;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0b1220;
+        color: #f5f9ff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header,
+      footer {
+        position: sticky;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        background: rgba(5, 12, 26, 0.92);
+        backdrop-filter: blur(8px);
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      header {
+        top: 0;
+        min-height: var(--header-height);
+      }
+
+      footer {
+        bottom: 0;
+        min-height: var(--footer-height);
+        font-size: 0.875rem;
+        color: #9fb7ff;
+      }
+
+      main {
+        flex: 1 1 auto;
+        display: grid;
+        grid-template-columns: 2fr 1.5fr;
+        gap: var(--gap);
+        padding: var(--gap);
+        align-items: stretch;
+      }
+
+      .panel {
+        background: linear-gradient(160deg, rgba(22, 35, 58, 0.96), rgba(13, 25, 45, 0.92));
+        border: 1px solid rgba(102, 128, 204, 0.24);
+        border-radius: 1rem;
+        padding: 1.25rem;
+        position: relative;
+        overflow: hidden;
+        min-height: calc(var(--panel-height));
+        display: flex;
+        flex-direction: column;
+      }
+
+      .panel h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+
+      #map-container {
+        position: relative;
+        flex: 1 1 auto;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        min-height: 280px;
+      }
+
+      #map-skeleton {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: repeating-linear-gradient(
+          120deg,
+          rgba(25, 43, 74, 0.72),
+          rgba(25, 43, 74, 0.72) 40px,
+          rgba(15, 24, 42, 0.9) 40px,
+          rgba(15, 24, 42, 0.9) 80px
+        );
+        color: #a8c5ff;
+        font-weight: 600;
+      }
+
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+
+      #schedule-panel {
+        grid-column: span 2;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .schedule-table-wrapper {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        max-height: var(--schedule-max-height);
+        border-radius: 0.75rem;
+        border: 1px solid rgba(102, 128, 204, 0.22);
+        background: rgba(8, 16, 32, 0.72);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 560px;
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        background: rgba(12, 24, 48, 0.98);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.85rem;
+        letter-spacing: 0.01em;
+        border-bottom: 1px solid rgba(102, 128, 204, 0.3);
+        z-index: 1;
+      }
+
+      tbody td {
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid rgba(102, 128, 204, 0.14);
+        font-size: 0.95rem;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        background: rgba(72, 104, 224, 0.18);
+        color: #d6e4ff;
+        font-size: 0.75rem;
+      }
+
+      .ioi-go {
+        background: rgba(64, 196, 144, 0.2);
+        color: #bbf7d0;
+      }
+
+      .ioi-watch {
+        background: rgba(255, 214, 102, 0.16);
+        color: #ffe5a3;
+      }
+
+      .ioi-nogo {
+        background: rgba(255, 109, 109, 0.18);
+        color: #ffd4d4;
+      }
+
+      .actions {
+        margin-top: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      button,
+      .dropzone {
+        border-radius: 0.75rem;
+        border: 1px dashed rgba(102, 128, 204, 0.45);
+        padding: 0.85rem 1.2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        background: rgba(18, 30, 56, 0.8);
+        color: inherit;
+        cursor: pointer;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+
+      button:hover,
+      .dropzone:hover {
+        border-color: rgba(134, 168, 255, 0.9);
+        background: rgba(26, 40, 70, 0.9);
+      }
+
+      .dropzone {
+        flex: 1 1 220px;
+        text-align: center;
+      }
+
+      .dropzone.dragging {
+        border-style: solid;
+        border-color: #89a7ff;
+        background: rgba(45, 70, 132, 0.4);
+      }
+
+      dialog::backdrop {
+        background: rgba(3, 10, 24, 0.72);
+        backdrop-filter: blur(4px);
+      }
+
+      dialog {
+        border: 1px solid rgba(102, 128, 204, 0.35);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        background: rgba(10, 18, 36, 0.96);
+        color: inherit;
+        width: min(520px, calc(100vw - 3rem));
+      }
+
+      dialog h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+      }
+
+      dialog form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      @media (max-width: 1100px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        #schedule-panel {
+          grid-column: span 1;
+        }
+      }
+
+      @media (max-width: 720px) {
+        :root {
+          --gap: 1rem;
+        }
+
+        header,
+        footer {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.35rem;
+        }
+
+        .panel {
+          min-height: calc(var(--panel-height) * 0.9);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <strong>Weather Vessel Logistics</strong>
+        <span style="opacity: 0.7; margin-left: 0.75rem">Real-time Marine Control Tower</span>
+      </div>
+      <div>
+        <button id="risk-scan">Risk Scan</button>
+        <button id="open-briefing">Briefing</button>
+      </div>
+    </header>
+    <main>
+      <section class="panel" aria-labelledby="map-heading">
+        <h2 id="map-heading">항로 &amp; 기상</h2>
+        <div id="map-container">
+          <div id="map-skeleton">Loading map…</div>
+          <div id="map"></div>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="controls-heading">
+        <h2 id="controls-heading">Controls</h2>
+        <p style="opacity: 0.8; line-height: 1.6">
+          업로드된 스케줄/기상 데이터를 기반으로 IOI 및 위험 창을 자동 분석합니다. CSV/JSON 업로드, 드래그 앤드 드롭 모두
+          지원합니다.
+        </p>
+        <div class="actions">
+          <div class="dropzone" id="schedule-drop" tabindex="0" role="button" aria-label="스케줄 파일 업로드">
+            CSV / JSON 업로드
+          </div>
+          <button id="open-report" type="button">일일 보고서 요청</button>
+        </div>
+        <div style="margin-top: auto; opacity: 0.7; font-size: 0.85rem" id="status-line">
+          마지막 업데이트: 데이터 수집 중…
+        </div>
+      </section>
+      <section class="panel" id="schedule-panel" aria-labelledby="schedule-heading">
+        <h2 id="schedule-heading">항차 스케줄</h2>
+        <div class="schedule-table-wrapper" id="schedule-wrapper">
+          <table aria-describedby="schedule-heading">
+            <thead>
+              <tr>
+                <th scope="col">Voyage</th>
+                <th scope="col">Cargo</th>
+                <th scope="col">ETD</th>
+                <th scope="col">ETA</th>
+                <th scope="col">IOI</th>
+              </tr>
+            </thead>
+            <tbody id="schedule-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <span>Asia/Dubai · 자동 스크롤은 사용자 조작 후 8초간 중지됩니다.</span>
+      <span id="auto-scroll-status">Auto-scroll active</span>
+    </footer>
+
+    <dialog id="briefing-modal" aria-labelledby="briefing-title">
+      <h3 id="briefing-title">일일 브리핑</h3>
+      <article id="briefing-body" style="white-space: pre-wrap; line-height: 1.5"></article>
+      <form method="dialog">
+        <button value="close" type="submit">닫기</button>
+      </form>
+    </dialog>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-o9N1j7kPTHIisHnqMTL36pGg5Qo7lB1C1xgdBA4bSAw="
+      crossorigin=""
+    ></script>
+    <script>
+      const state = {
+        autoScrollPausedUntil: 0,
+        autoScrollHandle: null,
+        latestSchedule: [],
+        route: [],
+      }
+
+      const idle = window.requestIdleCallback || ((cb) => setTimeout(() => cb(Date.now()), 120))
+
+      function updateLayoutVars() {
+        idle(() => {
+          const header = document.querySelector('header')
+          const footer = document.querySelector('footer')
+          const viewport = window.visualViewport || window
+          const padding = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 20
+          const headerHeight = header?.offsetHeight ?? 64
+          const footerHeight = footer?.offsetHeight ?? 48
+          const usable = viewport.height - headerHeight - footerHeight - padding * 2
+          const panelHeight = Math.max(usable, 320)
+          document.documentElement.style.setProperty('--panel-height', `${panelHeight}px`)
+          const scheduleMax = Math.max(panelHeight * 0.6, 240)
+          document.documentElement.style.setProperty('--schedule-max-height', `${scheduleMax}px`)
+        })
+      }
+
+      updateLayoutVars()
+      window.addEventListener('resize', updateLayoutVars)
+      window.visualViewport?.addEventListener('resize', updateLayoutVars)
+
+      function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max)
+      }
+
+      function safeNumber(value) {
+        if (value == null) return null
+        const numeric = typeof value === 'string' ? Number(value) : Number(value)
+        return Number.isFinite(numeric) ? numeric : null
+      }
+
+      function determineIoi(entry) {
+        const hs = safeNumber(entry.hs ?? entry.wave_m ?? entry.swell)
+        const wind = safeNumber(entry.windKt ?? entry.wind_kt ?? entry.wind)
+        const swellPeriod = safeNumber(entry.swellPeriod ?? entry.tp)
+        if (hs == null && wind == null && swellPeriod == null) return null
+        let ioi = 100
+        if (hs != null) {
+          if (hs > 4) ioi -= 40
+          else if (hs > 3) ioi -= 25
+          else if (hs > 2) ioi -= 15
+          else if (hs > 1) ioi -= 5
+        }
+        if (wind != null) {
+          if (wind > 30) ioi -= 35
+          else if (wind > 25) ioi -= 25
+          else if (wind > 20) ioi -= 15
+          else if (wind > 15) ioi -= 8
+          else if (wind > 10) ioi -= 3
+        }
+        if (swellPeriod != null && swellPeriod > 0) {
+          if (swellPeriod < 6) ioi -= 10
+          else if (swellPeriod > 12) ioi += 5
+        }
+        return clamp(Math.round(ioi), 0, 100)
+      }
+
+      function classifyIoi(ioi) {
+        if (ioi == null) return 'tag'
+        if (ioi >= 75) return 'tag ioi-go'
+        if (ioi >= 55) return 'tag ioi-watch'
+        return 'tag ioi-nogo'
+      }
+
+      function renderSchedule(entries) {
+        const tbody = document.getElementById('schedule-body')
+        tbody.innerHTML = ''
+        entries.forEach((entry) => {
+          const row = document.createElement('tr')
+          const ioi = entry.ioi ?? determineIoi(entry)
+          const cells = [
+            entry.id || entry.voyage || entry.VOYAGE || '—',
+            entry.cargo || entry.CARGO || '—',
+            entry.etdFormatted || entry.etd || entry.ETD || '—',
+            entry.etaFormatted || entry.eta || entry.ETA || '—',
+            ioi,
+          ]
+          cells.forEach((value, index) => {
+            const td = document.createElement('td')
+            if (index === 4) {
+              const tag = document.createElement('span')
+              tag.className = classifyIoi(ioi)
+              tag.textContent = ioi != null ? `${ioi.toFixed ? ioi.toFixed(0) : ioi} IOI` : 'n/a'
+              td.appendChild(tag)
+            } else {
+              td.textContent = value
+            }
+            row.appendChild(td)
+          })
+          tbody.appendChild(row)
+        })
+      }
+
+      function normaliseVoyage(entry) {
+        const result = { ...entry }
+        const id = entry.id ?? entry.voyage ?? entry.VOYAGE ?? null
+        if (id) result.id = id
+        const cargo = entry.cargo ?? entry.CARGO ?? null
+        if (cargo) result.cargo = cargo
+        const etd = entry.etd ?? entry.ETD ?? entry.departure ?? entry.Departure ?? null
+        const eta = entry.eta ?? entry.ETA ?? entry.arrival ?? entry.Arrival ?? null
+        if (etd) result.etdFormatted = new Date(etd).toLocaleString('ko-KR', { timeZone: 'Asia/Dubai' })
+        if (eta) result.etaFormatted = new Date(eta).toLocaleString('ko-KR', { timeZone: 'Asia/Dubai' })
+        result.ioi = entry.ioi != null ? clamp(Number(entry.ioi), 0, 100) : determineIoi(entry)
+        return result
+      }
+
+      function parseCsv(text) {
+        const [headerLine, ...rows] = text.trim().split(/\r?\n/)
+        const headers = headerLine.split(',').map((h) => h.trim())
+        return rows
+          .map((line) => line.split(',').reduce((acc, value, idx) => ({ ...acc, [headers[idx]]: value.trim() }), {}))
+          .map(normaliseVoyage)
+      }
+
+      function parseJson(text) {
+        const data = JSON.parse(text)
+        const entries = Array.isArray(data) ? data : Array.isArray(data.schedule) ? data.schedule : [data]
+        return entries.map(normaliseVoyage)
+      }
+
+      function handleFiles(files) {
+        if (!files.length) return
+        const file = files[0]
+        const reader = new FileReader()
+        reader.onload = () => {
+          try {
+            const text = reader.result
+            if (typeof text !== 'string') return
+            let entries = []
+            if (file.name.endsWith('.csv')) {
+              entries = parseCsv(text)
+            } else {
+              entries = parseJson(text)
+            }
+            if (entries.length) {
+              state.latestSchedule = entries
+              renderSchedule(entries)
+              document.getElementById('status-line').textContent = `${entries.length}건 스케줄 로드 완료`
+            }
+          } catch (error) {
+            console.error('parse error', error)
+            document.getElementById('status-line').textContent = '파일을 해석하지 못했습니다.'
+          }
+        }
+        reader.readAsText(file)
+      }
+
+      const dropzone = document.getElementById('schedule-drop')
+      dropzone.addEventListener('click', () => {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = '.csv,.json'
+        input.addEventListener('change', () => {
+          if (input.files) handleFiles(Array.from(input.files))
+        })
+        input.click()
+      })
+
+      ;['dragenter', 'dragover'].forEach((type) => {
+        dropzone.addEventListener(type, (event) => {
+          event.preventDefault()
+          dropzone.classList.add('dragging')
+        })
+      })
+      ;['dragleave', 'drop'].forEach((type) => {
+        dropzone.addEventListener(type, (event) => {
+          event.preventDefault()
+          if (type === 'drop') {
+            const files = event.dataTransfer?.files
+            if (files) handleFiles(Array.from(files))
+          }
+          requestAnimationFrame(() => dropzone.classList.remove('dragging'))
+        })
+      })
+
+      function pauseAutoScroll() {
+        state.autoScrollPausedUntil = Date.now() + 8000
+        document.getElementById('auto-scroll-status').textContent = 'Auto-scroll paused'
+      }
+
+      function resumeAutoScroll() {
+        if (Date.now() > state.autoScrollPausedUntil) {
+          document.getElementById('auto-scroll-status').textContent = 'Auto-scroll active'
+        }
+      }
+
+      const userEvents = ['wheel', 'touchstart', 'pointerdown', 'keydown']
+      userEvents.forEach((event) => {
+        document.addEventListener(event, () => {
+          pauseAutoScroll()
+          if (state.autoScrollHandle) {
+            clearTimeout(state.autoScrollHandle)
+            state.autoScrollHandle = null
+          }
+          state.autoScrollHandle = setTimeout(resumeAutoScroll, 8000)
+        })
+      })
+
+      function autoScroll() {
+        if (Date.now() < state.autoScrollPausedUntil) {
+          state.autoScrollHandle = setTimeout(autoScroll, 3000)
+          return
+        }
+        const wrapper = document.getElementById('schedule-wrapper')
+        const maxScroll = wrapper.scrollHeight - wrapper.clientHeight
+        const next = wrapper.scrollTop + 140
+        wrapper.scrollTo({ top: next >= maxScroll ? 0 : next, behavior: 'smooth' })
+        state.autoScrollHandle = setTimeout(autoScroll, 5000)
+        resumeAutoScroll()
+      }
+
+      state.autoScrollHandle = setTimeout(autoScroll, 5000)
+
+      function initMap(route) {
+        const mapEl = document.getElementById('map')
+        const skeleton = document.getElementById('map-skeleton')
+        const map = L.map(mapEl, { zoomControl: false })
+        const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 12,
+          attribution: '&copy; OpenStreetMap contributors',
+        })
+        tiles.addTo(map)
+        skeleton.hidden = true
+
+        if (!Array.isArray(route) || route.length < 2) {
+          console.warn('Route is insufficient for map rendering')
+          map.setView([24.4539, 54.3773], 5)
+          return map
+        }
+
+        const safePoints = route
+          .map((pt) => {
+            const lat = safeNumber(pt.lat)
+            const lon = safeNumber(pt.lon)
+            if (lat == null || lon == null) return null
+            return [clamp(lat, -90, 90), clamp(lon, -180, 180)]
+          })
+          .filter(Boolean)
+        if (safePoints.length < 2) {
+          console.warn('No valid points to plot')
+          map.setView([24.4539, 54.3773], 5)
+          return map
+        }
+
+        const polyline = L.polyline(safePoints, {
+          color: '#6ca8ff',
+          weight: 4,
+          opacity: 0.7,
+        })
+        polyline.addTo(map)
+        map.fitBounds(polyline.getBounds(), { padding: [20, 20] })
+        return map
+      }
+
+      function updateRoute(points) {
+        try {
+          initMap(points)
+        } catch (error) {
+          console.error('Map render failed', error)
+        }
+      }
+
+      async function refreshData() {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 7000)
+        try {
+          const [vesselRes, marineRes] = await Promise.all([
+            fetch('/api/vessel', { signal: controller.signal }).catch(() => null),
+            fetch('/api/marine', { signal: controller.signal }).catch(() => null),
+          ])
+          const vessel = vesselRes && vesselRes.ok ? await vesselRes.json() : null
+          const marine = marineRes && marineRes.ok ? await marineRes.json() : null
+
+          if (vessel?.schedule) {
+            const entries = vessel.schedule.map(normaliseVoyage)
+            state.latestSchedule = entries
+            renderSchedule(entries)
+          }
+
+          if (vessel?.route?.points) {
+            state.route = vessel.route.points
+            updateRoute(state.route)
+          } else if (Array.isArray(vessel?.route)) {
+            state.route = vessel.route
+            updateRoute(state.route)
+          }
+
+          const marineLine = marine
+            ? `Hs ${marine.hs != null ? marine.hs.toFixed(2) : '--'} m · Wind ${
+                marine.windKt != null ? marine.windKt.toFixed(2) : '--'
+              } kt · IOI ${marine.ioi != null ? marine.ioi.toFixed(0) : 'n/a'}`
+            : '해상 데이터 없음'
+          document.getElementById('status-line').textContent = `마지막 업데이트: ${new Date().toLocaleTimeString('ko-KR', {
+            timeZone: 'Asia/Dubai',
+          })} · ${marineLine}`
+        } catch (error) {
+          console.error('refresh error', error)
+          document.getElementById('status-line').textContent = '데이터 갱신 실패 – 네트워크를 확인하세요.'
+        } finally {
+          clearTimeout(timeout)
+        }
+      }
+
+      refreshData()
+      setInterval(refreshData, 5 * 60 * 1000)
+
+      const briefingModal = document.getElementById('briefing-modal')
+      const briefingBody = document.getElementById('briefing-body')
+      function openBriefing(text) {
+        briefingBody.textContent = text
+        if (!briefingModal.open) {
+          briefingModal.showModal()
+        }
+        const focusable = briefingModal.querySelector('button')
+        focusable?.focus({ preventScroll: true })
+      }
+
+      briefingModal.addEventListener('cancel', (event) => {
+        event.preventDefault()
+        briefingModal.close('cancel')
+      })
+      briefingModal.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation()
+          briefingModal.close('escape')
+        } else if (event.key === 'Tab') {
+          const focusable = Array.from(
+            briefingModal.querySelectorAll('button, [href], input, textarea, [tabindex]:not([tabindex="-1"])'),
+          )
+          if (focusable.length === 0) return
+          const first = focusable[0]
+          const last = focusable[focusable.length - 1]
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault()
+            last.focus()
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault()
+            first.focus()
+          }
+        }
+      })
+
+      document.getElementById('open-briefing').addEventListener('click', async () => {
+        try {
+          const response = await fetch('/api/briefing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              schedule: state.latestSchedule,
+              marine_snapshot: null,
+            }),
+          })
+          const payload = await response.json()
+          openBriefing(payload.briefing || '브리핑을 가져오지 못했습니다.')
+        } catch (error) {
+          console.error('briefing error', error)
+          openBriefing('브리핑 요청 실패 – 잠시 후 다시 시도하세요.')
+        }
+      })
+
+      document.getElementById('open-report').addEventListener('click', async () => {
+        pauseAutoScroll()
+        try {
+          const response = await fetch('/api/report')
+          const payload = await response.json()
+          const lines = [`보고서 전송: ${payload.ok ? '성공' : '부분 실패'}`]
+          if (Array.isArray(payload.sent)) {
+            payload.sent.forEach((entry) => lines.push(`- ${entry.channel}: ${entry.ok ? 'ok' : entry.error || 'error'}`))
+          }
+          openBriefing(lines.join('\n'))
+        } catch (error) {
+          console.error('report error', error)
+          openBriefing('보고서 요청 실패 – 네트워크 상태를 확인하세요.')
+        }
+      })
+
+      document.getElementById('risk-scan').addEventListener('click', () => {
+        pauseAutoScroll()
+        document.getElementById('status-line').textContent = 'Risk Scan 실행 중…'
+        refreshData()
+      })
+    </script>
+  </body>
+</html>

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import smtplib
 from email.message import EmailMessage
 from typing import Optional, Protocol, Sequence
 
 from wv.notify.manager import NotificationChannel
+
+LOGGER = logging.getLogger("wv.notify.email")
 
 
 class SupportsSendMessage(Protocol):
@@ -65,3 +68,28 @@ class EmailNotifier(NotificationChannel):
 
         with self._make_connection() as client:
             client.send_message(message)
+
+
+def send_email(
+    body: str,
+    recipients: Sequence[str],
+    *,
+    subject: str | None = None,
+    dry_run: bool = False,
+    sender: str | None = None,
+    smtp_client: SupportsSendMessage | None = None,
+) -> None:
+    """이메일 알림 전송. Send email notification."""
+
+    notifier = EmailNotifier(
+        smtp_client=smtp_client,
+        sender=sender,
+        recipients=recipients,
+    )
+    if dry_run:
+        LOGGER.info("Dry-run email: %s", body)
+        return
+    notifier.send(subject or "Weather Vessel Update", body)
+
+
+__all__ = ["EmailNotifier", "send_email"]

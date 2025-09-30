@@ -9,6 +9,8 @@ from typing import Iterable, Sequence
 
 from pydantic import BaseModel, ConfigDict
 
+from .utils import format_metric
+
 
 class LogiBaseModel(BaseModel):
     """물류 표준 베이스 모델. Logistics standard base model."""
@@ -22,14 +24,14 @@ class ForecastPoint(LogiBaseModel):
     time: dt.datetime
     lat: float
     lon: float
-    hs: float
-    tp: float
-    dp: float
-    wind_speed: float
-    wind_dir: float
-    swell_height: float
-    swell_period: float
-    swell_direction: float
+    hs: float | None
+    tp: float | None
+    dp: float | None
+    wind_speed: float | None
+    wind_dir: float | None
+    swell_height: float | None
+    swell_period: float | None
+    swell_direction: float | None
 
 
 class RiskLevel(str, Enum):
@@ -56,12 +58,28 @@ class RiskMetrics(LogiBaseModel):
     dominant_wind_dir: float | None
     average_swell_period: float | None
 
+    def values(self) -> list[str]:
+        """지표를 문자열로 반환. Return metrics as formatted strings."""
+
+        def _fmt(value: float | None, unit: str) -> str:
+            if value is None:
+                return f"N/A {unit}"
+            return format_metric(value, unit)
+
+        return [
+            _fmt(self.max_wave_height, "m"),
+            _fmt(self.max_wind_speed, "kt"),
+            _fmt(self.dominant_wave_dir, "deg"),
+            _fmt(self.dominant_wind_dir, "deg"),
+            _fmt(self.average_swell_period, "s"),
+        ]
+
 
 class RiskAssessment(LogiBaseModel):
     """위험 평가 결과. Risk assessment result."""
 
     level: RiskLevel
-    reasons: Sequence[RiskReason]
+    reasons: Sequence[str]
     metrics: RiskMetrics
 
 
