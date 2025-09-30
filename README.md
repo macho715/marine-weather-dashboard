@@ -242,4 +242,4 @@ MIT License. 자세한 내용은 `LICENSE` 파일을 참조하세요.
 ---
 
 **Marine Operations Analytics Toolkit v0.1.0**  
-HVDC Project - Samsung C&T Logistics & ADNOC·DSV Strategic Partnership
+HVDC Project - Samsung C&T Logistics & ADNOC·DSV Strategic Partnership# Force Vercel Cache Refresh - 09/30/2025 23:14:52
