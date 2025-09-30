@@ -1,153 +1,144 @@
 # Weather Vessel Logistics Control Tower
 
-A Next.js web application for marine logistics operations, providing real-time vessel tracking, weather analysis, and automated reporting for maritime operations in the Middle East region.
+A Next.js 15 application that powers a marine logistics control tower. It merges vessel scheduling, marine forecasts, and daily notifications to coordinate twice-daily operations in the Asia/Dubai timezone.
 
-## 🚀 Live Deployment
+## ✨ Highlights
 
-**Production URL**: https://weather-vessel-logistics.vercel.app
+- **Stabilised APIs** – `/api/marine` now includes guarded fetch with timeout, retries, circuit breaker, and stale-cache fallback.
+- **Automated Daily Reports** – `/api/report` fans out to Slack and email and records results for diagnostics.
+- **Operations Dashboard** – `public/logistics-app.html` provides a pure-HTML fallback dashboard with sticky schedule header, resilient auto-scroll, and Leaflet mapping safeguards.
+- **Scheduler Ready** – Vercel Cron triggers and a self-hosted Node scheduler script keep the 06:00 / 17:00 (Asia/Dubai) reporting cadence.
 
-**Status**: ✅ Active | **Environment**: Production | **Duration**: 48s | **Last Deploy**: 2h ago
+## 🛠️ Requirements
 
-## 🌊 Quick Start
+| Tool       | Version                        |
+| ---------- | ------------------------------ |
+| Node.js    | 18+ (tested on 20.x)           |
+| npm / pnpm | npm 10+ or pnpm 8+             |
+| TypeScript | Included via `devDependencies` |
+| Vitest     | Included via `devDependencies` |
+
+## 🚀 Getting Started
 
 ```bash
-git clone https://github.com/macho715/marine-weather-dashboard.git
-cd marine-weather-dashboard
 npm install
 npm run dev
+# visit http://localhost:3000
 ```
 
-Visit http://localhost:3000 to access the application.
+The static fallback dashboard is available at [`/public/logistics-app.html`](public/logistics-app.html). Open the file directly in a browser if you need an offline-ready control tower.
 
-## 🔧 API Endpoints
+## 🔐 Environment Variables
 
-| Endpoint | Description | Status |
-|----------|-------------|--------|
-| `/api/health` | System health check | ✅ Active |
-| `/api/marine` | Marine weather data + IOI calculation | ✅ Active |
-| `/api/vessel` | Vessel information and tracking | ✅ Active |
-| `/api/briefing` | AI-powered briefing generation | ✅ Active |
-| `/api/report` | Automated report generation | ✅ Active |
-| `/api/assistant` | AI assistant for logistics queries | ✅ Active |
+Create a `.env.local` (for Next.js) or `.env` (for tooling) file based on `.env.example`.
 
-## 📊 Features
-
-- **Real-time Vessel Tracking**: AIS data integration for vessel monitoring
-- **Weather Analysis**: Marine weather data with IOI (Index of Interest) scoring
-- **Automated Reporting**: Twice-daily reports with Slack/Email notifications
-- **AI-Powered Briefings**: Intelligent logistics briefings and recommendations
-- **Multi-channel Alerts**: Slack, Email, and Telegram notifications
-
-## 🏗️ Technology Stack
-
-- **Frontend**: Next.js 15.2.4, React 19, TypeScript
-- **Styling**: Tailwind CSS v4, Radix UI components
-- **Deployment**: Vercel (Production)
-- **Node.js**: 20.x (Fixed version)
-- **Package Manager**: pnpm 10.x
-- **Build Time**: ~48 seconds
-
-## 🔧 Development
-
-### Local Development
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
-npm run test         # Run tests with coverage
-```
-
-### Environment Variables
-```bash
-# Notification settings
-SLACK_WEBHOOK_URL=your_slack_webhook
-RESEND_API_KEY=your_resend_api_key
-REPORT_SENDER=no-reply@yourdomain.com
-REPORT_RECIPIENTS=ops@yourdomain.com
-
-# Optional: Custom timezone
+```dotenv
+SLACK_WEBHOOK_URL= # Incoming webhook for Slack notifications
+RESEND_API_KEY=    # Resend API key for transactional email
+REPORT_SENDER=no-reply@example.com
+REPORT_RECIPIENTS=ops@example.com,owner@example.com
 REPORT_TIMEZONE=Asia/Dubai
+REPORT_ENDPOINT=http://localhost:3000/api/report
+REPORT_LOCK_PATH=.report.lock
 ```
 
-## 📊 IOI (Index of Interest) Scoring
+> ℹ️ `REPORT_TIMEZONE` defaults to Asia/Dubai. Keep Slack, email, scheduler, and dashboards aligned to this timezone for consistent reporting windows.
 
-The system calculates IOI scores based on marine conditions:
+## 📡 Core Commands
 
-- **GO (75+)**: Safe sailing conditions
-- **WATCH (55-74)**: Monitor conditions closely  
-- **NO-GO (<55)**: Unsafe for operations
+```bash
+npm run lint         # ESLint (Next.js configuration)
+npm run typecheck    # tsc --noEmit
+npm run test         # vitest run --coverage
+npx prettier --check .
+```
 
-Factors include wave height (Hs), wind speed (knots), and swell period.
+All four checks must succeed before deploying. Vitest coverage is kept ≥ 70% through dedicated tests for notifier success/failure paths, the report route, assistant/briefing flows, and the guarded fetch utility.
 
-## 🚀 Deployment Status
+## 🧪 Local Verification
 
-| Metric | Value |
-|--------|-------|
-| **Status** | ✅ Production Ready |
-| **Build Time** | 48 seconds |
-| **Node.js** | 20.x (Fixed) |
-| **Package Manager** | pnpm 10.x |
-| **Last Deploy** | 2 hours ago |
-| **Commit** | 596436b |
+### Triggering a Report
 
-## 📂 Project Structure
+```bash
+curl -s http://localhost:3000/api/report?slot=am | jq
+```
+
+Expect a JSON payload with `ok`, `sent`, `slot`, `generatedAt`, and `sample` fields. Slack/email failures surface per channel without breaking the overall `ok` flag when at least one delivery succeeds.
+
+### PowerShell Health Check
+
+```powershell
+pwsh ./scripts/health-check.ps1
+pwsh ./scripts/health-check.ps1 -Path "http://localhost:3001/api/health"
+```
+
+The script auto-detects the listening Node port (via `WEATHER_PORT`, `Get-NetTCPConnection`, or `netstat` fallback). Responses are printed as JSON; failures show a warning and non-zero exit code.
+
+## ⏰ Scheduling Options
+
+### Vercel (Serverless)
+
+`vercel.json` registers two Cron jobs:
+
+| Local Slot       | UTC Cron     | Endpoint              |
+| ---------------- | ------------ | --------------------- |
+| 06:00 Asia/Dubai | `0 2 * * *`  | `/api/report?slot=am` |
+| 17:00 Asia/Dubai | `0 13 * * *` | `/api/report?slot=pm` |
+
+Deploying to Vercel automatically keeps the reporting rhythm without extra infrastructure.
+
+### Self-hosted Node Scheduler
+
+Use the provided script when running the app outside Vercel:
+
+```bash
+# Build once (optional)
+npm run build
+
+# Start the Next.js server (or ensure it is already running)
+npm run start
+
+# In a separate process
+node scripts/scheduler.ts
+```
+
+The scheduler honours `REPORT_ENDPOINT`, `REPORT_TIMEZONE`, and writes a lock file (`REPORT_LOCK_PATH`) to avoid duplicate executions when a slot already ran within the TTL window.
+
+## 🗺️ Dashboard Notes (`public/logistics-app.html`)
+
+- Auto-scroll pauses for eight seconds whenever the user interacts (wheel, touch, pointer, or keyboard).
+- Panel heights are recalculated with `requestIdleCallback` to keep sticky headers and schedule viewport stable across breakpoints.
+- Leaflet maps hide the skeleton immediately, guard against routes shorter than two points, and clamp all coordinates.
+- CSV/JSON uploads normalise column aliases (`id`, `voyage`, `VOYAGE`, etc.) with a shared `safeNumber` helper, ensuring IOI calculations never emit `NaN`.
+- Modals implement focus trapping and ESC-close logic; drop zones resist flicker on drag leave/enter.
+
+## 🧭 Operations Guide
+
+1. **Before each shift** – Run the PowerShell health check (Windows) or `curl` the `/api/health` endpoint to ensure the deployment is reachable.
+2. **Manual report** – Trigger `curl http://localhost:3000/api/report?slot=am` for ad-hoc dispatches; Slack/email partial failures surface within the `sent` array.
+3. **Scheduler monitoring** – Watch the scheduler logs (`[scheduler]`) to confirm that both 06:00 and 17:00 slots fire. Delete the lock file if you intentionally need to rerun a slot.
+4. **Fallback dashboard** – In case the React front-end is offline, open `public/logistics-app.html` locally to keep situational awareness.
+
+## 📦 Project Structure
 
 ```
 app/
-├── api/                    # API routes
-│   ├── health/            # System health
-│   ├── marine/            # Weather data
-│   ├── vessel/            # Vessel tracking
-│   ├── briefing/          # AI briefings
-│   └── report/            # Report generation
-lib/
-├── server/                # Server-side modules
-│   ├── ioi.ts            # IOI calculations
-│   ├── vessel-data.ts    # Vessel dataset
-│   ├── report-state.ts   # Report management
-│   └── notifier.ts       # Notifications
-components/                # React components
-public/                    # Static assets
+├── api/
+│   ├── assistant/      # Keyword-guided assistant endpoint + tests
+│   ├── briefing/       # Daily briefing formatter + tests
+│   ├── marine/         # Marine forecast aggregation + tests
+│   └── report/         # Slack/email report dispatcher + tests
+lib/server/
+├── guarded-fetch.ts    # Timeout + retry + circuit breaker helper
+├── notifier.ts         # Slack + Resend adapters
+└── vessel-data.ts      # Fixture data used in tests and fallbacks
+public/
+└── logistics-app.html  # Offline-first dashboard
+scripts/
+├── health-check.ps1    # Port auto-detecting health probe
+└── scheduler.ts        # node-cron based twice-daily runner
 ```
 
-## 🔧 Configuration
+## 🧾 CHANGELOG
 
-### Vercel Settings
-- **Build Command**: Auto-detected (`next build`)
-- **Output Directory**: Auto-detected (`.next`)
-- **Install Command**: Auto-detected (`pnpm install`)
-- **Node.js Version**: 20.x (Fixed)
-
-### pnpm Configuration
-```json
-{
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@tailwindcss/oxide",
-      "esbuild", 
-      "sharp"
-    ]
-  }
-}
-```
-
-## 📈 Performance
-
-- **First Load JS**: 101-102 kB
-- **API Response Time**: <100ms
-- **Build Cache**: 172.95 MB
-- **Edge Requests**: Monitored
-- **Function Invocations**: Tracked
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `npm run test`
-5. Submit a pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
+See [CHANGELOG.md](CHANGELOG.md) for release notes on stability fixes, layout improvements, and the new reporting workflow.

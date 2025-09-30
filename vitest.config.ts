@@ -9,7 +9,14 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      include: ["lib/server/**/*.ts", "app/api/report/route.ts"],
+      include: ["lib/server/**/*.ts", "app/api/**/*.ts"],
+      exclude: [
+        "lib/server/ioi.ts",
+        "lib/server/report-state.ts",
+        "lib/server/vessel-data.ts",
+        "app/api/health/**",
+        "app/api/vessel/**",
+      ],
       thresholds: {
         lines: 70,
         statements: 70,

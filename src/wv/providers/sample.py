@@ -7,10 +7,10 @@ import math
 from typing import Iterable
 
 from wv.core.models import ForecastPoint
-from wv.providers.base import BaseProvider
+from wv.providers.base import MarineProvider
 
 
-class SampleProvider(BaseProvider):
+class SampleProvider(MarineProvider):
     """기본 샘플 예보. Deterministic sample forecast."""
 
     @property
@@ -19,7 +19,7 @@ class SampleProvider(BaseProvider):
 
         return "sample"
 
-    def fetch_forecast(self, lat: float, lon: float, hours: int) -> Iterable[ForecastPoint]:
+    def fetch(self, lat: float, lon: float, hours: int) -> Iterable[ForecastPoint]:
         """모의 데이터를 생성. Generate simulated data."""
 
         base = dt.datetime.now(dt.timezone.utc).replace(minute=0, second=0, microsecond=0)

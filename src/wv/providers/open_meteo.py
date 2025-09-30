@@ -4,101 +4,117 @@ from __future__ import annotations
 
 import datetime as dt
 import os
-from typing import Iterable
+from typing import List
+
+import httpx
 
 from wv.core.models import ForecastPoint
-from wv.providers.base import BaseProvider, ProviderError
-from wv.utils.http import request_json
+from wv.providers.base import (
+    MarineProvider,
+    ProviderError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+)
 
 
-class OpenMeteoMarineProvider(BaseProvider):
+class OpenMeteoMarineProvider(MarineProvider):
     """오픈 메테오 API 래퍼. Wrapper for Open-Meteo API."""
 
-    def __init__(self) -> None:
-        self._endpoint = os.getenv(
-            "WV_OPEN_METEO_ENDPOINT", "https://marine-api.open-meteo.com/v1/marine"
+    name = "open-meteo-marine"
+
+    def __init__(
+        self,
+        endpoint: str | None = None,
+        client: httpx.Client | None = None,
+        timeout: float | None = None,
+    ) -> None:
+        self._endpoint = (
+            endpoint
+            or os.getenv("WV_OPEN_METEO_ENDPOINT", "https://marine-api.open-meteo.com/v1/marine")
+            or "https://marine-api.open-meteo.com/v1/marine"
         )
+        self._client = client or httpx.Client(timeout=timeout or self.timeout)
+        self._owns_client = client is None
+        if timeout is not None and client is not None:
+            self.timeout = timeout
 
-    @property
-    def name(self) -> str:
-        """공급자 이름. Provider name."""
+    def __del__(self) -> None:
+        if getattr(self, "_owns_client", False):
+            self._client.close()
 
-        return "open-meteo-marine"
+    def fetch(self, lat: float, lon: float, hours: int) -> List[ForecastPoint]:
+        """오픈 메테오 예보 획득. Fetch Open-Meteo forecast."""
 
-    def fetch_forecast(self, lat: float, lon: float, hours: int) -> Iterable[ForecastPoint]:
-        """예보 조회 수행. Retrieve forecast payload."""
-
-        hourly_params = [
-            "wave_height",
-            "wave_direction",
-            "wave_period",
-            "wind_speed_10m",
-            "wind_direction_10m",
-            "swell_wave_height",
-            "swell_wave_direction",
-            "swell_wave_period",
-        ]
         params = {
-            "latitude": lat,
-            "longitude": lon,
-            "hourly": ",".join(hourly_params),
-            "length": hours,
+            "latitude": f"{lat:.4f}",
+            "longitude": f"{lon:.4f}",
+            "hourly": "wave_height,wave_direction,wave_period,wind_speed,wind_direction",
+            "past_hours": 0,
+            "forecast_hours": max(hours, 1),
         }
-        payload = request_json(
-            "GET",
-            self._endpoint,
-            params=params,
-            timeout=self.timeout,
-            retries=self.max_retries,
-            backoff_factor=self.backoff_factor,
-        )
-        hourly = payload.get("hourly")
-        if not hourly:
-            raise ProviderError("Open-Meteo payload missing hourly data")
-        times = list(hourly.get("time", []))
-        wave_heights = list(hourly.get("wave_height", []))
-        wave_dirs = list(hourly.get("wave_direction", []))
-        wave_periods = list(hourly.get("wave_period", []))
-        wind_speeds = list(hourly.get("wind_speed_10m", []))
-        wind_dirs = list(hourly.get("wind_direction_10m", []))
-        swell_heights = list(hourly.get("swell_wave_height", wave_heights))
-        swell_dirs = list(hourly.get("swell_wave_direction", wave_dirs))
-        swell_periods = list(hourly.get("swell_wave_period", wave_periods))
+        try:
+            response = self._client.get(self._endpoint, params=params, timeout=self.timeout)
+        except httpx.TimeoutException as exc:
+            raise ProviderTimeoutError("Open-Meteo request timed out") from exc
+        except httpx.HTTPError as exc:  # pragma: no cover - network failure path
+            raise ProviderError(f"Open-Meteo request failed: {exc}") from exc
 
-        points: list[ForecastPoint] = []
-        for idx, time_raw in enumerate(times):
-            time = dt.datetime.fromisoformat(time_raw.replace("Z", "+00:00"))
+        if response.status_code == 429:
+            raise ProviderRateLimitError("Open-Meteo rate limit exceeded")
+        if response.status_code >= 500:
+            raise ProviderError(f"Open-Meteo server error {response.status_code}")
+        if response.status_code != 200:
+            raise ProviderError(f"Open-Meteo unexpected status {response.status_code}")
+
+        payload = response.json()
+        hourly = payload.get("hourly")
+        if not isinstance(hourly, dict):
+            raise ProviderError("Open-Meteo payload missing hourly data")
+
+        times = list(hourly.get("time", []))
+        if not times:
+            raise ProviderError("Open-Meteo returned no timestamps")
+
+        def value(key_primary: str, key_fallback: str, index: int) -> float | None:
+            raw = hourly.get(key_primary)
+            if not raw:
+                raw = hourly.get(key_fallback)
+            try:
+                candidate = raw[index]  # type: ignore[index]
+            except (IndexError, TypeError):
+                return None
+            try:
+                return float(candidate)
+            except (TypeError, ValueError):
+                return None
+
+        points: List[ForecastPoint] = []
+        for idx, raw_time in enumerate(times):
+            try:
+                timestamp = dt.datetime.fromisoformat(str(raw_time).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=dt.timezone.utc)
             points.append(
                 ForecastPoint(
-                    time=time,
+                    time=timestamp,
                     lat=lat,
                     lon=lon,
-                    hs=_value_at(wave_heights, idx, 0.0),
-                    tp=_value_at(wave_periods, idx, 0.0),
-                    dp=_value_at(wave_dirs, idx, 0.0),
-                    wind_speed=_value_at(wind_speeds, idx, 0.0),
-                    wind_dir=_value_at(wind_dirs, idx, 0.0),
-                    swell_height=_value_at(swell_heights, idx, 0.0),
-                    swell_period=_value_at(swell_periods, idx, 0.0),
-                    swell_direction=_value_at(swell_dirs, idx, 0.0),
+                    hs=value("wave_height", "swell_wave_height", idx) or 0.0,
+                    tp=value("wave_period", "swell_wave_period", idx) or 0.0,
+                    dp=value("wave_direction", "swell_wave_direction", idx) or 0.0,
+                    wind_speed=value("wind_speed", "wind_speed_10m", idx) or 0.0,
+                    wind_dir=value("wind_direction", "wind_direction_10m", idx) or 0.0,
+                    swell_height=value("swell_wave_height", "wave_height", idx) or 0.0,
+                    swell_period=value("swell_wave_period", "wave_period", idx) or 0.0,
+                    swell_direction=value("swell_wave_direction", "wave_direction", idx) or 0.0,
                 )
             )
+
         if not points:
             raise ProviderError("Open-Meteo returned no data")
         return points
-
-
-def _value_at(values: list[float], idx: int, default: float) -> float:
-    """배열에서 값 추출. Extract value from array."""
-
-    try:
-        value = list(values)[idx]
-    except (IndexError, TypeError):
-        return default
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
 
 
 __all__ = ["OpenMeteoMarineProvider"]

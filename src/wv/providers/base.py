@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import abc
 import logging
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from wv.core.models import ForecastPoint, ForecastSeries
 
@@ -13,6 +13,14 @@ LOGGER = logging.getLogger(__name__)
 
 class ProviderError(RuntimeError):
     """데이터 공급 오류. Data provider error."""
+
+
+class ProviderTimeoutError(ProviderError):
+    """요청 시간초과. Request timed out."""
+
+
+class ProviderRateLimitError(ProviderError):
+    """요청 제한 초과. Rate limit exceeded."""
 
 
 class BaseProvider(abc.ABC):
@@ -43,4 +51,23 @@ class BaseProvider(abc.ABC):
             raise ProviderError(f"Provider {self.name} failed: {exc}") from exc
 
 
-__all__ = ["BaseProvider", "ProviderError"]
+class MarineProvider(BaseProvider, abc.ABC):
+    """해양 전용 공급자. Marine-specific provider."""
+
+    @abc.abstractmethod
+    def fetch(self, lat: float, lon: float, hours: int) -> Sequence[ForecastPoint]:
+        """예보 데이터 획득. Fetch marine forecast data."""
+
+    def fetch_forecast(self, lat: float, lon: float, hours: int) -> ForecastSeries:
+        """해양 fetch 위임. Delegate to marine fetch."""
+
+        return self.fetch(lat=lat, lon=lon, hours=hours)
+
+
+__all__ = [
+    "BaseProvider",
+    "MarineProvider",
+    "ProviderError",
+    "ProviderRateLimitError",
+    "ProviderTimeoutError",
+]

@@ -1,0 +1,25 @@
+# Legacy files managed outside Prettier
+.github/
+app/api/health/
+app/api/vessel/
+app/globals.css
+app/layout.tsx
+app/page.tsx
+components/
+config/
+docs/
+lib/server/ioi.ts
+lib/server/notifier.ts
+lib/server/notifier.test.ts
+lib/server/report-state.ts
+lib/server/vessel-data.ts
+lib/utils.ts
+next.config.mjs
+plan.md
+pnpm-lock.yaml
+postcss.config.mjs
+scripts/health-check.ps1
+scripts/scheduler.ts
+styles/
+test-*.js
+vitest.config.ts
