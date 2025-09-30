@@ -17,6 +17,17 @@ const nextConfig = {
       allowedOrigins: ['localhost:3000', 'localhost:3001', 'localhost:3002', 'marine-weather-dashboard.vercel.app']
     }, // Server Actions 활성화
   },
+  // Vercel 최적화 설정
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: false,
+  // API Routes 최적화
+  api: {
+    bodyParser: {
+      sizeLimit: '1mb',
+    },
+    responseLimit: false,
+  },
 }
 
 export default nextConfig

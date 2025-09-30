@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useMarineStream } from '@/hooks/use-marine-stream';
+import { PerformanceMonitor, debounce, DataCache } from '@/lib/performance-utils';
+import NotificationSystem from '@/components/notification-system';
+import DataExport from '@/components/data-export';
+import { useNotifications } from '@/hooks/use-notifications';
 
 interface MarineDecision {
   Hs_fused_m: number;
@@ -43,6 +47,21 @@ export default function MarineOperationsDashboard({
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   
+  // 성능 모니터링
+  const performanceMonitor = useMemo(() => PerformanceMonitor.getInstance(), []);
+  const dataCache = useMemo(() => new DataCache<MarineWeatherData[]>(50), []);
+  
+  // 알림 시스템
+  const {
+    notifications,
+    addMarineNotification,
+    addWeatherAlert,
+    addSystemNotification,
+    markAsRead,
+    clearAllNotifications,
+    clearReadNotifications
+  } = useNotifications();
+  
   // 실시간 스트리밍 훅
   const { 
     data: streamData, 
@@ -65,27 +84,42 @@ export default function MarineOperationsDashboard({
     }
   };
 
-  // 해양 기상 데이터 가져오기
-  const fetchWeatherData = async () => {
+  // 해양 기상 데이터 가져오기 (캐싱 적용)
+  const fetchWeatherData = useCallback(async () => {
+    const cacheKey = `weather_${latitude}_${longitude}`;
+    const cachedData = dataCache.get(cacheKey);
+    
+    if (cachedData) {
+      setWeatherData(cachedData);
+      return;
+    }
+
     try {
+      const startTime = performance.now();
       const response = await fetch(`/api/marine-weather?lat=${latitude}&lon=${longitude}`);
+      const duration = performanceMonitor.measureApiResponse('weather', startTime);
+      
       if (!response.ok) throw new Error('Failed to fetch weather data');
       const data = await response.json();
+      
       setWeatherData(data.data);
+      dataCache.set(cacheKey, data.data, 2 * 60 * 1000); // 2분 캐시
+      
+      console.log(`Weather API response time: ${duration.toFixed(2)}ms`);
     } catch (err) {
       console.error('Error fetching weather data:', err);
       setError('기상 데이터를 가져올 수 없습니다.');
     }
-  };
+  }, [latitude, longitude, dataCache, performanceMonitor]);
 
-  // 데이터 새로고침
-  const refreshData = async () => {
+  // 데이터 새로고침 (디바운스 적용)
+  const refreshData = useCallback(debounce(async () => {
     setLoading(true);
     setError(null);
     await Promise.all([fetchMarineDecision(), fetchWeatherData()]);
     setLastUpdate(new Date());
     setLoading(false);
-  };
+  }, 300), [fetchMarineDecision, fetchWeatherData]);
 
   // 초기 데이터 로드
   useEffect(() => {
@@ -95,15 +129,36 @@ export default function MarineOperationsDashboard({
   // 실시간 스트림 데이터 처리
   useEffect(() => {
     if (streamData?.marine_decision) {
-      setMarineDecision({
+      const newDecision = {
         Hs_fused_m: parseFloat(streamData.marine_decision.Hs_fused_m),
         W_fused_kt: parseFloat(streamData.marine_decision.W_fused_kt),
         decision: streamData.marine_decision.decision,
         ETA_hours: parseFloat(streamData.marine_decision.ETA_hours),
         buffer_min: streamData.marine_decision.buffer_min
-      });
+      };
+      
+      setMarineDecision(newDecision);
+      
+      // 의사결정 변경 시 알림 생성
+      if (marineDecision && marineDecision.decision !== newDecision.decision) {
+        addMarineNotification(
+          newDecision.decision,
+          newDecision.Hs_fused_m,
+          newDecision.W_fused_kt,
+          newDecision.decision === 'No-Go' ? 'critical' : 'medium'
+        );
+      }
     }
-  }, [streamData]);
+  }, [streamData, marineDecision, addMarineNotification]);
+
+  // 연결 상태 변경 시 알림
+  useEffect(() => {
+    if (isConnected) {
+      addSystemNotification('connected');
+    } else if (streamError) {
+      addSystemNotification('error', streamError);
+    }
+  }, [isConnected, streamError, addSystemNotification]);
 
   // 자동 새로고침 (5분마다)
   useEffect(() => {
@@ -242,6 +297,16 @@ export default function MarineOperationsDashboard({
           </div>
         )}
 
+        {/* 알림 시스템 */}
+        <div className="mb-8">
+          <NotificationSystem
+            notifications={notifications}
+            onMarkAsRead={markAsRead}
+            onClearAll={clearAllNotifications}
+            onClearRead={clearReadNotifications}
+          />
+        </div>
+
         {/* 기상 데이터 테이블 */}
         {weatherData.length > 0 && (
           <Card className="bg-slate-800 border-slate-700">
@@ -290,6 +355,15 @@ export default function MarineOperationsDashboard({
             </CardContent>
           </Card>
         )}
+
+        {/* 데이터 내보내기 */}
+        <div className="mt-8">
+          <DataExport
+            marineDecision={marineDecision}
+            weatherData={weatherData}
+            lastUpdate={lastUpdate || streamLastUpdate}
+          />
+        </div>
 
         {/* 새로고침 버튼 */}
         <div className="mt-8 text-center">
