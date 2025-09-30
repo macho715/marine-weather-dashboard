@@ -1,0 +1,64 @@
+name: "Marine Operations ERI v0"
+version: "0.1.0"
+default_score: 50.0
+rules:
+  - variable: "wave_height"
+    operator: "le"
+    threshold: 1.0
+    score: 100.0
+    description: "Ideal wave conditions"
+  - variable: "wave_height"
+    operator: "le"
+    threshold: 2.0
+    score: 80.0
+    description: "Good wave conditions"
+  - variable: "wave_height"
+    operator: "le"
+    threshold: 3.0
+    score: 60.0
+    description: "Moderate wave conditions"
+  - variable: "wave_height"
+    operator: "gt"
+    threshold: 3.0
+    score: 20.0
+    description: "Poor wave conditions"
+  - variable: "wind_speed"
+    operator: "le"
+    threshold: 10.0
+    score: 100.0
+    description: "Ideal wind conditions"
+  - variable: "wind_speed"
+    operator: "le"
+    threshold: 20.0
+    score: 80.0
+    description: "Good wind conditions"
+  - variable: "wind_speed"
+    operator: "le"
+    threshold: 30.0
+    score: 60.0
+    description: "Moderate wind conditions"
+  - variable: "wind_speed"
+    operator: "gt"
+    threshold: 30.0
+    score: 20.0
+    description: "Poor wind conditions"
+  - variable: "visibility"
+    operator: "ge"
+    threshold: 10.0
+    score: 100.0
+    description: "Excellent visibility"
+  - variable: "visibility"
+    operator: "ge"
+    threshold: 5.0
+    score: 80.0
+    description: "Good visibility"
+  - variable: "visibility"
+    operator: "ge"
+    threshold: 2.0
+    score: 60.0
+    description: "Moderate visibility"
+  - variable: "visibility"
+    operator: "lt"
+    threshold: 2.0
+    score: 20.0
+    description: "Poor visibility"

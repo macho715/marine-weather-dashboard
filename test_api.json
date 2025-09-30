@@ -1,0 +1,11 @@
+{
+  "combined_ft": 3.5,
+  "wind_adnoc": 15.0,
+  "hs_onshore_ft": 2.0,
+  "hs_offshore_ft": 3.0,
+  "wind_albahar": 18.0,
+  "alert": "rough at times westward",
+  "offshore_weight": 0.35,
+  "distance_nm": 120.0,
+  "planned_speed": 12.0
+}

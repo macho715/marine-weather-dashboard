@@ -1,44 +1,104 @@
-# Marine Operations Analytics Toolkit
+# Weather Vessel
 
-해양 운항 분석 툴킷 - 물류 제어 타워를 위한 해양 기상 데이터 처리 및 의사결정 시스템
+Weather Vessel delivers marine weather intelligence, risk scoring, and voyage scheduling for logistics control towers. The CLI aggregates multiple providers (Stormglass, Open-Meteo Marine, NOAA WaveWatch III, Copernicus) with automatic fallback, disk caching, and timezone-safe scheduling in **Asia/Dubai**.
 
-Marine operations analytics toolkit for logistics control towers with marine weather data processing and decision making.
+## Key Features
 
-## 주요 기능 (Key Features)
+- 🌊 **Multi-provider marine data** with retries, quota-aware backoff, and cache fallback (≤3 h)
+- 🧭 **Risk assessment** from significant wave height, wind speed/direction, and swell parameters
+- 📅 **7-day voyage schedule** with CSV and ICS exports and fixed 2-decimal metrics
+- 📣 **Notifications** via Email (default), Slack, and Telegram with dry-run support
+- ⏱️ **Twice-daily checks** aligned to 06:00 / 17:00 Asia/Dubai for automated alerts
+- 🚢 **Marine Operations Toolkit** (`marine_ops`) for hybrid AGI/DAS workflows
+- 🔄 **ADNOC × Al Bahar Fusion** decision support with Go/Conditional/No-Go gates
 
-- 🌊 **다중 공급자 해양 데이터**: Stormglass, Open-Meteo Marine, WorldTides 통합
-- 🧭 **위험 평가**: 유의파고, 풍속/풍향, 너울 파라미터 기반
-- 📅 **7일 항해 일정**: CSV 및 ICS 내보내기, 고정 2자리 메트릭
-- 📣 **알림**: 이메일, Slack, Telegram 지원 (dry-run 모드)
-- ⏱️ **자동화**: Asia/Dubai 기준 06:00/17:00 자동 체크
-- 🤖 **AI 의사결정**: ADNOC + Al Bahar 데이터 융합 알고리즘
-
-## 설치 (Installation)
+## Installation
 
 ```bash
-# 가상환경 생성
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# 또는
-.venv\Scripts\activate     # Windows
-
-# 패키지 설치
-pip install -e .
-
-# 환경 변수 설정
-cp .env.example .env
+ python -m venv .venv
+ source .venv/bin/activate
+ pip install -e .[all]
+ cp .env.example .env
 ```
 
-### 필수 환경 변수 (Required Environment Variables)
+ Set the relevant API keys and notification endpoints in `.env`. Never commit real credentials.
 
-| 변수 | 설명 |
-|------|------|
-| `STORMGLASS_API_KEY` | Stormglass API 키 |
-| `WORLDTIDES_API_KEY` | WorldTides API 키 |
-| `OPEN_METEO_BASE` | Open-Meteo Marine 엔드포인트 (선택) |
-| `OPEN_METEO_TIMEOUT` | 요청 타임아웃 (초) |
-| `APP_LOG_LEVEL` | 로그 레벨 (기본: INFO) |
-| `TZ` | 애플리케이션 타임존 (UTC로 설정) |
+### Required Environment Variables
+
+| Variable                                             | Description                                            |
+| ---------------------------------------------------- | ------------------------------------------------------ |
+| `STORMGLASS_API_KEY`                                 | Stormglass API key                                    |
+| `WORLDTIDES_API_KEY`                                 | WorldTides API key                                    |
+| `OPEN_METEO_BASE`                                    | Optional custom Open-Meteo base URL                    |
+| `OPEN_METEO_TIMEOUT`                                 | Request timeout (seconds)                             |
+| `APP_LOG_LEVEL`                                      | Log level (default: INFO)                             |
+| `TZ`                                                 | Application timezone (set to UTC)                     |
+| `WV_OPEN_METEO_ENDPOINT`                           | Optional custom Open-Meteo base URL                    |
+| `WV_NOAA_WW3_ENDPOINT`                             | Optional NOAA WaveWatch III JSON endpoint              |
+| `WV_COPERNICUS_ENDPOINT` / `WV_COPERNICUS_TOKEN` | Optional Copernicus API configuration                  |
+| `WV_SMTP_*`                                        | SMTP host/port/credentials for email                   |
+| `WV_EMAIL_RECIPIENTS`                              | Comma separated default recipients                     |
+| `WV_SLACK_WEBHOOK`                                 | Slack webhook URL (optional)                           |
+| `WV_TELEGRAM_TOKEN` / `WV_TELEGRAM_CHAT_ID`      | Telegram bot configuration                             |
+| `WV_OUTPUT_DIR`                                    | Directory for generated CSV/ICS (default `outputs/`) |
+
+ Risk thresholds can be tuned via `WV_MEDIUM_WAVE_THRESHOLD`, `WV_HIGH_WAVE_THRESHOLD`, `WV_MEDIUM_WIND_THRESHOLD`, and `WV_HIGH_WIND_THRESHOLD`.
+
+### Marine Operations Toolkit (`marine_ops`)
+
+The new `marine_ops` package provides a reusable toolkit for hybrid AGI/DAS workflows:
+
+- **Connectors**: Stormglass, WorldTides, and Open-Meteo fallback clients that normalize responses into a common schema with ISO 8601 UTC timestamps and per-variable unit metadata.
+- **Core utilities**: Unit conversions, quality control (physical bounds + IQR clipping), μ/σ bias correction, and weighted ensemble blending with 2-decimal precision.
+- **ERI v0**: Externalized YAML rules converted into a 0–100 Environmental Readiness Index (ERI) score with quality badges highlighting data gaps and bias adjustments.
+- **Settings + Fallback**: `MarineOpsSettings` bootstraps connectors from environment variables while `fetch_forecast_with_fallback` routes around Stormglass rate limits/timeouts using Open-Meteo Marine.
+
+```python
+import datetime as dt
+
+from marine_ops.connectors import OpenMeteoFallback, StormglassConnector, fetch_forecast_with_fallback
+from marine_ops.core import MarineOpsSettings
+from marine_ops.eri import compute_eri_timeseries, load_rule_set
+
+settings = MarineOpsSettings.from_env()
+stormglass = settings.build_stormglass_connector()
+fallback = settings.build_open_meteo_fallback()
+start = dt.datetime.now(tz=dt.timezone.utc)
+end = start + dt.timedelta(days=3)
+series = fetch_forecast_with_fallback(25.0, 55.0, start, end, stormglass, fallback)
+rules = load_rule_set("tests/marine_ops/fixtures/eri_rules.yaml")
+eri_points = compute_eri_timeseries(series, rules)
+```
+
+### ADNOC × Al Bahar voyage fusion
+
+- Harmonise **Combined(seas)**, onshore/offshore significant wave height, and wind guidance into a single decision.
+- Apply **unit normalization** (ft→m, kt→m/s), **route weighting** (coastal/offshore), and **alert amplification** (rough at times, High seas).
+- Compute **Go/Conditional/No-Go** gates with optional **coastal windowing** for sheltered routes.
+- Estimate **ETA** with speed-loss models for wind and wave resistance.
+
+```python
+from wv.core.fusion import Inputs, decide_and_eta
+
+inputs = Inputs(
+    C_ft=3.5,  # ADNOC Combined(seas) in feet
+    W_adnoc=15.0,  # ADNOC wind speed in knots
+    Hs_on_ft=2.0,  # Al Bahar onshore significant wave height in feet
+    Hs_off_ft=3.0,  # Al Bahar offshore significant wave height in feet
+    W_albahar=18.0,  # Al Bahar wind speed in knots
+    alert="rough at times westward",  # Al Bahar alert message
+    w_off=0.35,  # Offshore weight (0-1)
+    D_NM=120.0,  # Distance in nautical miles
+    V_plan=12.0,  # Planned speed in knots
+)
+
+result = decide_and_eta(inputs)
+print(f"Decision: {result.decision}")
+print(f"Fused Hs: {result.Hs_fused_m:.2f}m")
+print(f"Fused Wind: {result.W_fused_kt:.1f}kt")
+print(f"ETA: {result.ETA_hours:.1f}h")
+print(f"Buffer: {result.buffer_min}min")
+```
 
 ## 사용법 (Usage)
 

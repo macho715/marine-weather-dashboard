@@ -1,17 +1,12 @@
-"""커넥터 패키지. Connectors package."""
+"""해양 데이터 커넥터. Marine data connectors."""
 
-from .open_meteo_fallback import (
-    FALLBACK_STATUS_CODES,
-    OpenMeteoFallback,
-    fetch_forecast_with_fallback,
-)
+from .open_meteo_fallback import OpenMeteoFallback, fetch_forecast_with_fallback
 from .stormglass import StormglassConnector
 from .worldtides import WorldTidesConnector
 
 __all__ = [
-    "FALLBACK_STATUS_CODES",
-    "OpenMeteoFallback",
     "StormglassConnector",
     "WorldTidesConnector",
+    "OpenMeteoFallback", 
     "fetch_forecast_with_fallback",
 ]

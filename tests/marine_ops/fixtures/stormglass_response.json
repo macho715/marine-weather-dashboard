@@ -1,0 +1,52 @@
+{
+  "hours": [
+    {
+      "time": "2024-01-01T00:00:00Z",
+      "waveHeight": {
+        "noaa": 1.2
+      },
+      "windSpeed": {
+        "noaa": 8.5
+      },
+      "windDirection": {
+        "noaa": 180
+      },
+      "visibility": {
+        "noaa": 15.0
+      },
+      "swellHeight": {
+        "noaa": 0.8
+      },
+      "swellPeriod": {
+        "noaa": 8.5
+      },
+      "swellDirection": {
+        "noaa": 200
+      }
+    },
+    {
+      "time": "2024-01-01T01:00:00Z",
+      "waveHeight": {
+        "noaa": 1.5
+      },
+      "windSpeed": {
+        "noaa": 12.0
+      },
+      "windDirection": {
+        "noaa": 185
+      },
+      "visibility": {
+        "noaa": 12.0
+      },
+      "swellHeight": {
+        "noaa": 1.0
+      },
+      "swellPeriod": {
+        "noaa": 9.0
+      },
+      "swellDirection": {
+        "noaa": 195
+      }
+    }
+  ]
+}

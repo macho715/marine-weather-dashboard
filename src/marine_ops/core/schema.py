@@ -6,7 +6,9 @@ import datetime as dt
 from enum import Enum
 from typing import Iterable, Mapping, Sequence
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
+from pydantic import Field, HttpUrl, field_validator, model_validator
+
+from wv.core.models import LogiBaseModel
 
 CSV_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 CSV_HEADER: tuple[str, ...] = (
@@ -54,14 +56,14 @@ class QualityFlag(str, Enum):
     IMPUTED = "imputed"
 
 
-class Position(BaseModel):
+class Position(LogiBaseModel):
     """위치 좌표. Position coordinates."""
 
     latitude: float = Field(..., ge=-90.0, le=90.0)
     longitude: float = Field(..., ge=-180.0, le=180.0)
 
 
-class MarineMeasurement(BaseModel):
+class MarineMeasurement(LogiBaseModel):
     """해양 변수 관측값. Marine variable measurement."""
 
     variable: MarineVariable
@@ -75,7 +77,7 @@ class MarineMeasurement(BaseModel):
         return self
 
 
-class TimeseriesMetadata(BaseModel):
+class TimeseriesMetadata(LogiBaseModel):
     """시계열 메타데이터. Timeseries metadata."""
 
     source: str
@@ -91,7 +93,7 @@ class TimeseriesMetadata(BaseModel):
         return self
 
 
-class MarineDataPoint(BaseModel):
+class MarineDataPoint(LogiBaseModel):
     """표준화된 해양 데이터 포인트. Standardized marine data point."""
 
     timestamp: dt.datetime
@@ -109,7 +111,7 @@ class MarineDataPoint(BaseModel):
         return value
 
 
-class MarineTimeseries(BaseModel):
+class MarineTimeseries(LogiBaseModel):
     """표준 해양 시계열. Standard marine timeseries."""
 
     points: Sequence[MarineDataPoint]
@@ -124,11 +126,11 @@ class MarineTimeseries(BaseModel):
                     iso_time,
                     f"{point.position.latitude:.2f}",
                     f"{point.position.longitude:.2f}",
-                    measurement.variable.value,
+                    measurement.variable,
                     f"{measurement.value:.2f}",
-                    measurement.unit.value,
+                    measurement.unit,
                     point.metadata.source,
-                    measurement.quality_flag.value,
+                    measurement.quality_flag,
                     "true" if point.metadata.bias_corrected else "false",
                     (
                         f"{point.metadata.ensemble_weight:.2f}"
